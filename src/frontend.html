@@ -1,0 +1,242 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Панель управления</title>
+    <style>
+        body { font-family: sans-serif; padding: 20px; }
+        nav button { margin-right: 10px; }
+        table { width: 100%; border-collapse: collapse; margin-top: 1em; }
+        th, td { border: 1px solid #ccc; padding: 6px 10px; text-align: left; }
+        tr:nth-child(even) { background: #f9f9f9; }
+        form { margin-top: 1em; }
+        .hidden { display: none; }
+        .tab-content { margin-top: 20px; }
+        input, select { margin-right: 8px; }
+    </style>
+</head>
+<body>
+<h1>Панель управления</h1>
+<nav>
+    <button onclick="showTab('users')">Пользователи</button>
+    <button onclick="showTab('roles')">Роли</button>
+</nav>
+
+<div class="tab-content" id="users-tab">
+    <h2>Пользователи</h2>
+    <button onclick="showUserForm()">Создать пользователя</button>
+    <div id="user-form" class="hidden"></div>
+    <table id="users-table"></table>
+</div>
+
+<div class="tab-content hidden" id="roles-tab">
+    <h2>Роли</h2>
+    <button onclick="showRoleForm()">Создать роль</button>
+    <div id="role-form" class="hidden"></div>
+    <table id="roles-table"></table>
+</div>
+
+<script>
+    let rolesCache = [];
+
+    function showTab(tab) {
+        document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+        document.getElementById(`${tab}-tab`).classList.remove('hidden');
+        if (tab === 'users') loadUsers();
+        if (tab === 'roles') loadRoles();
+    }
+
+    async function loadUsers() {
+        const res = await fetch('/users');
+        const users = await res.json();
+        const table = document.getElementById('users-table');
+        table.innerHTML = `
+                <tr><th>Имя</th><th>Заблокирован</th><th>Роли</th><th>Действия</th></tr>
+                ${users.map(u => `
+                    <tr>
+                        <td>${u.full_name}</td>
+                        <td>${u.is_blocked ? 'Да' : 'Нет'}</td>
+                        <td>${u.roles.join(', ')}</td>
+                        <td>
+                            <button onclick="editUser('${u.uuid}', '${u.full_name}', ${u.is_blocked})">Изменить</button>
+                            <button onclick="deleteUser('${u.uuid}')">Удалить</button>
+                            <button onclick="assignRoles('${u.uuid}', ${JSON.stringify(u.roles)})">Назначить роли</button>
+                        </td>
+                    </tr>
+                `).join('')}
+            `;
+    }
+
+    async function loadRoles() {
+        const res = await fetch('/roles');
+        const roles = await res.json();
+        rolesCache = roles;
+        const table = document.getElementById('roles-table');
+        table.innerHTML = `
+                <tr><th>Название</th><th>Описание</th><th>Действия</th></tr>
+                ${roles.map(r => `
+                    <tr>
+                        <td>${r.name}</td>
+                        <td>${r.description}</td>
+                        <td>
+                            <button onclick="editRole('${r.uuid}', '${r.name}', '${r.description}')">Изменить</button>
+                            <button onclick="deleteRole('${r.uuid}')">Удалить</button>
+                        </td>
+                    </tr>
+                `).join('')}
+            `;
+    }
+
+    function showUserForm() {
+        document.getElementById('user-form').innerHTML = `
+                <form onsubmit="submitUser(event)">
+                    <input name="full_name" placeholder="ФИО">
+                    <label><input type="checkbox" name="is_blocked"> Заблокирован</label>
+                    <button type="submit">Создать</button>
+                </form>
+            `;
+        document.getElementById('user-form').classList.remove('hidden');
+    }
+
+    async function submitUser(e) {
+        e.preventDefault();
+        const form = e.target;
+        const data = {
+            full_name: form.full_name.value,
+            is_blocked: form.is_blocked.checked,
+            roles: []
+        };
+        await fetch('/users', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        });
+        form.reset();
+        loadUsers();
+    }
+
+    async function editUser(uuid, name, blocked) {
+        const formHtml = `
+                <form onsubmit="submitUserEdit(event, '${uuid}')">
+                    <input name="full_name" value="${name}" placeholder="ФИО">
+                    <label><input type="checkbox" name="is_blocked" ${blocked ? 'checked' : ''}> Заблокирован</label>
+                    <button type="submit">Сохранить</button>
+                </form>
+            `;
+        document.getElementById('user-form').innerHTML = formHtml;
+        document.getElementById('user-form').classList.remove('hidden');
+    }
+
+    async function submitUserEdit(e, uuid) {
+        e.preventDefault();
+        const form = e.target;
+        const data = {
+            full_name: form.full_name.value,
+            is_blocked: form.is_blocked.checked
+        };
+        await fetch(`/users/${uuid}`, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        });
+        loadUsers();
+    }
+
+    async function assignRoles(uuid, currentRoles) {
+        if (!rolesCache.length) await loadRoles();
+        const formHtml = `
+                <form onsubmit="submitAssignRoles(event, '${uuid}')">
+                    <label>Назначить роли:</label>
+                    <select name="roles" multiple size="${Math.min(rolesCache.length, 5)}">
+                        ${rolesCache.map(r => `
+                            <option value="${r.name}" ${currentRoles.includes(r.name) ? 'selected' : ''}>${r.name}</option>
+                        `).join('')}
+                    </select>
+                    <button type="submit">Назначить</button>
+                </form>
+            `;
+        document.getElementById('user-form').innerHTML = formHtml;
+        document.getElementById('user-form').classList.remove('hidden');
+    }
+
+    async function submitAssignRoles(e, uuid) {
+        e.preventDefault();
+        const form = e.target;
+        const selected = Array.from(form.roles.selectedOptions).map(opt => opt.value);
+        await fetch(`/users/${uuid}`, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify({ roles: selected })
+        });
+        loadUsers();
+    }
+
+    async function deleteUser(uuid) {
+        if (!confirm('Удалить пользователя?')) return;
+        await fetch(`/users/${uuid}`, { method: 'DELETE' });
+        loadUsers();
+    }
+
+    function showRoleForm() {
+        document.getElementById('role-form').innerHTML = `
+                <form onsubmit="submitRole(event)">
+                    <input name="name" placeholder="Название">
+                    <input name="description" placeholder="Описание">
+                    <button type="submit">Создать</button>
+                </form>
+            `;
+        document.getElementById('role-form').classList.remove('hidden');
+    }
+
+    async function submitRole(e) {
+        e.preventDefault();
+        const form = e.target;
+        const data = {
+            name: form.name.value,
+            description: form.description.value
+        };
+        await fetch('/roles', {
+            method: 'POST',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        });
+        loadRoles();
+    }
+
+    async function editRole(uuid, name, description) {
+        const formHtml = `
+                <form onsubmit="submitEditRole(event, '${uuid}')">
+                    <input name="name" value="${name}" placeholder="Название">
+                    <input name="description" value="${description}" placeholder="Описание">
+                    <button type="submit">Сохранить</button>
+                </form>
+            `;
+        document.getElementById('role-form').innerHTML = formHtml;
+        document.getElementById('role-form').classList.remove('hidden');
+    }
+
+    async function submitEditRole(e, uuid) {
+        e.preventDefault();
+        const form = e.target;
+        const data = {
+            name: form.name.value,
+            description: form.description.value
+        };
+        await fetch(`/roles/${uuid}`, {
+            method: 'PUT',
+            headers: {'Content-Type': 'application/json'},
+            body: JSON.stringify(data)
+        });
+        loadRoles();
+    }
+
+    async function deleteRole(uuid) {
+        if (!confirm('Удалить роль?')) return;
+        await fetch(`/roles/${uuid}`, { method: 'DELETE' });
+        loadRoles();
+    }
+
+    showTab('users');
+</script>
+</body>
+</html>
