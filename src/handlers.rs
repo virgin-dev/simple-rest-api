@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use std::sync::Mutex;
 use uuid::Uuid;
 
-use crate::models::{CreateRoleDTO, CreateUserDTO, Role, RolesResponse, UpdateRoleDTO, UpdateUserDTO, User, UsersResponse};
+use crate::models::{CreateRoleDTO, CreateUserDTO, Role, RoleReference, RolesResponse, UpdateRoleDTO, UpdateUserDTO, User, UserResponse, UsersResponse};
 use crate::storage::{save_roles, save_users};
 
 type UserStore = Mutex<HashMap<String, User>>;
@@ -13,21 +13,39 @@ type RoleStore = Mutex<HashMap<String, Role>>;
 
 #[get("/users")]
 pub async fn get_all_users(users: web::Data<UserStore>) -> impl Responder {
-    let users = users.lock().unwrap();
-    let response = UsersResponse {
-        users: users.values().cloned().collect(),
-    };
-    HttpResponse::Ok().json(response)
+    let user_list = users.lock().unwrap().values().map(|user| {
+        UserResponse {
+            uuid: user.uuid.clone(),
+            full_name: user.full_name.clone(),
+            is_blocked: user.is_blocked,
+            roles: user.roles.iter().map(|rid| RoleReference { uuid: rid.clone() }).collect(),
+        }
+    }).collect::<Vec<_>>();
+
+    HttpResponse::Ok().json(UsersResponse { users: user_list })
+
 }
 
 #[get("/users/{uuid}")]
 pub async fn get_user(uuid: web::Path<String>, users: web::Data<UserStore>) -> impl Responder {
     let users = users.lock().unwrap();
-    match users.get(&uuid.into_inner()) {
+    let id = uuid.into_inner();
+
+    match users.get(&id) {
         Some(user) => {
-            let response = json!({ "users": [user] });
-            HttpResponse::Ok().json(response)
-        },
+            let response_user = UserResponse {
+                uuid: user.uuid.clone(),
+                full_name: user.full_name.clone(),
+                is_blocked: user.is_blocked,
+                roles: user.roles.iter().map(|rid| RoleReference {
+                    uuid: rid.clone()
+                }).collect(),
+            };
+
+            HttpResponse::Ok().json(UsersResponse {
+                users: vec![response_user],
+            })
+        }
         None => HttpResponse::NotFound().body("User not found"),
     }
 }

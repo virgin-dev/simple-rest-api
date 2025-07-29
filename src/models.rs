@@ -44,10 +44,23 @@ pub struct UpdateRoleDTO {
 
 #[derive(Serialize)]
 pub struct UsersResponse {
-    pub users: Vec<User>,
+    pub users: Vec<UserResponse>,
 }
 
 #[derive(Serialize)]
 pub struct RolesResponse {
     pub roles: Vec<Role>,
+}
+
+#[derive(Serialize)]
+pub struct UserResponse {
+    pub uuid: String,
+    pub full_name: String,
+    pub is_blocked: bool,
+    pub roles: Vec<RoleReference>,
+}
+
+#[derive(Serialize)]
+pub struct RoleReference {
+    pub(crate) uuid: String,
 }
