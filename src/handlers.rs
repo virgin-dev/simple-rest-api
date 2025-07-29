@@ -133,7 +133,7 @@ pub async fn get_role(uuid: web::Path<String>, roles: web::Data<RoleStore>) -> i
     let roles = roles.lock().unwrap();
     match roles.get(&uuid.into_inner()) {
         Some(role) => {
-            let response = json!({ "roles": &role });
+            let response = json!({ "roles": [&role] });
             HttpResponse::Ok().json(response)
         },
         None => HttpResponse::NotFound().body("Role not found"),
