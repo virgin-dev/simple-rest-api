@@ -2,28 +2,30 @@ mod handlers;
 mod models;
 mod storage;
 mod frontend;
-mod api_docs;
+mod config;
 
+use crate::config::Config;
 use crate::storage::{load_roles, load_users};
-use actix_web::{web, App, HttpServer};
-use std::sync::Mutex;
 use actix_web::middleware::Logger;
-use env_logger::Env;
-use log::info;
+use actix_web::{web, App, HttpServer};
+use env_logger::{Builder, Env};
+use log::{debug, info, LevelFilter};
+use std::fs;
+use std::sync::Mutex;
 use utoipa::OpenApi;
 use utoipa_swagger_ui::SwaggerUi;
-use crate::api_docs::ApiDoc;
 
 #[actix_web::main]
 async fn main() -> std::io::Result<()> {
+    let config = Config::from_file("config.toml");
 
-    env_logger::Builder::from_env(Env::default().default_filter_or("debug")).init();
+    env_logger::Builder::from_env(Env::default().default_filter_or(config.log_level.as_str())).init();
 
-    info!("Server running on http://127.0.0.1:8080");
+    info!("Server running on http://{}:{}", &config.ip, &config.port);
 
     let users = web::Data::new(Mutex::new(load_users()));
+
     let roles = web::Data::new(Mutex::new(load_roles()));
-    let openapi = ApiDoc::openapi();
 
     HttpServer::new(move || {
         App::new()
@@ -43,12 +45,8 @@ async fn main() -> std::io::Result<()> {
             .service(handlers::forbidden)
             .service(frontend::index)
             .service(handlers::get_user_search)
-            .service(
-                SwaggerUi::new("/docs")
-                    .url("/api-doc/openapi.json", openapi.clone())
-            )
     })
-        .bind(("127.0.0.1", 8080))?
+        .bind((config.ip, config.port))?
         .run()
         .await
 }

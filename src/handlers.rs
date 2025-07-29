@@ -5,19 +5,12 @@ use std::collections::HashMap;
 use std::sync::Mutex;
 use uuid::Uuid;
 
-use crate::models::{CreateRoleDTO, CreateUserDTO, Role, UpdateRoleDTO, UpdateUserDTO, User, UsersResponse};
+use crate::models::{CreateRoleDTO, CreateUserDTO, Role, RolesResponse, UpdateRoleDTO, UpdateUserDTO, User, UsersResponse};
 use crate::storage::{save_roles, save_users};
 
 type UserStore = Mutex<HashMap<String, User>>;
 type RoleStore = Mutex<HashMap<String, Role>>;
 
-#[utoipa::path(
-    get,
-    path = "/users",
-    responses(
-        (status = 200, description = "Список пользователей", body = [User])
-    )
-)]
 #[get("/users")]
 pub async fn get_all_users(users: web::Data<UserStore>) -> impl Responder {
     let users = users.lock().unwrap();
@@ -27,21 +20,12 @@ pub async fn get_all_users(users: web::Data<UserStore>) -> impl Responder {
     HttpResponse::Ok().json(response)
 }
 
-#[utoipa::path(
-    get,
-    path = "/users/{uuid}",
-    params(("uuid" = String, Path, description = "UUID пользователя")),
-    responses(
-        (status = 200, description = "Пользователь найден", body = User),
-        (status = 404, description = "Пользователь не найден")
-    )
-)]
 #[get("/users/{uuid}")]
 pub async fn get_user(uuid: web::Path<String>, users: web::Data<UserStore>) -> impl Responder {
     let users = users.lock().unwrap();
     match users.get(&uuid.into_inner()) {
         Some(user) => {
-            let response = serde_json::json!({ "users": [user] });
+            let response = json!({ "users": [user] });
             HttpResponse::Ok().json(response)
         },
         None => HttpResponse::NotFound().body("User not found"),
@@ -62,12 +46,6 @@ pub async fn get_user_search(query: Query<HashMap<String,String>>, users: web::D
     }
 }
 
-#[utoipa::path(
-    post,
-    path = "/users",
-    request_body = CreateUserDTO,
-    responses((status = 201, description = "Пользователь создан", body = User))
-)]
 #[post("/users")]
 pub async fn create_user(dto: web::Json<CreateUserDTO>, users: web::Data<UserStore>) -> impl Responder {
     let mut users = users.lock().unwrap();
@@ -83,16 +61,6 @@ pub async fn create_user(dto: web::Json<CreateUserDTO>, users: web::Data<UserSto
     HttpResponse::Created().json(user)
 }
 
-#[utoipa::path(
-    put,
-    path = "/users/{uuid}",
-    request_body = UpdateUserDTO,
-    params(("uuid" = String, Path, description = "UUID пользователя")),
-    responses(
-        (status = 200, description = "Пользователь обновлён", body = User),
-        (status = 404, description = "Пользователь не найден")
-    )
-)]
 #[put("/users/{uuid}")]
 pub async fn update_user(uuid: web::Path<String>, dto: web::Json<UpdateUserDTO>, users: web::Data<UserStore>) -> impl Responder {
     let id = uuid.into_inner();
@@ -122,17 +90,6 @@ pub async fn update_user(uuid: web::Path<String>, dto: web::Json<UpdateUserDTO>,
     }
 }
 
-
-
-#[utoipa::path(
-    delete,
-    path = "/users/{uuid}",
-    params(("uuid" = String, Path, description = "UUID пользователя")),
-    responses(
-        (status = 204, description = "Пользователь удалён"),
-        (status = 404, description = "Пользователь не найден")
-    )
-)]
 #[delete("/users/{uuid}")]
 pub async fn delete_user(uuid: web::Path<String>, users: web::Data<UserStore>) -> impl Responder {
     let mut users = users.lock().unwrap();
@@ -144,46 +101,29 @@ pub async fn delete_user(uuid: web::Path<String>, users: web::Data<UserStore>) -
     }
 }
 
-#[utoipa::path(
-    get,
-    path = "/roles",
-    responses((status = 200, description = "Список всех ролей", body = [Role]))
-)]
 #[get("/roles")]
 pub async fn get_all_roles(roles: web::Data<RoleStore>) -> impl Responder {
     let roles = roles.lock().unwrap();
-    HttpResponse::Ok().json(roles.values().cloned().collect::<Vec<_>>())
+    let response = RolesResponse {
+        roles: roles.values().cloned().collect(),
+    };
+    HttpResponse::Ok().json(response)
 }
 
-#[utoipa::path(
-    get,
-    path = "/roles/{uuid}",
-    params(("uuid" = String, Path, description = "UUID роли")),
-    responses(
-        (status = 200, description = "Роль найдена", body = Role),
-        (status = 404, description = "Роль не найдена")
-    )
-)]
 #[get("/roles/{uuid}")]
 pub async fn get_role(uuid: web::Path<String>, roles: web::Data<RoleStore>) -> impl Responder {
     let roles = roles.lock().unwrap();
     match roles.get(&uuid.into_inner()) {
-        Some(role) => HttpResponse::Ok().json(role),
+        Some(role) => {
+            let response = json!({ "roles": &role });
+            HttpResponse::Ok().json(response)
+        },
         None => HttpResponse::NotFound().body("Role not found"),
     }
 }
 
-#[utoipa::path(
-    post,
-    path = "/roles",
-    request_body = CreateRoleDTO,
-    responses((status = 201, description = "Роль создана", body = Role))
-)]
 #[post("/roles")]
-pub async fn create_role(
-    dto: web::Json<CreateRoleDTO>,
-    roles: web::Data<RoleStore>,
-) -> impl Responder {
+pub async fn create_role(dto: web::Json<CreateRoleDTO>, roles: web::Data<RoleStore>) -> impl Responder {
     let mut roles = roles.lock().unwrap();
     let uuid = Uuid::new_v4().to_string();
     let role = Role {
@@ -196,22 +136,8 @@ pub async fn create_role(
     HttpResponse::Created().json(role)
 }
 
-#[utoipa::path(
-    put,
-    path = "/roles/{uuid}",
-    request_body = UpdateRoleDTO,
-    params(("uuid" = String, Path, description = "UUID роли")),
-    responses(
-        (status = 200, description = "Роль обновлена", body = Role),
-        (status = 404, description = "Роль не найдена")
-    )
-)]
 #[put("/roles/{uuid}")]
-pub async fn update_role(
-    uuid: web::Path<String>,
-    dto: web::Json<UpdateRoleDTO>,
-    roles: web::Data<RoleStore>,
-) -> impl Responder {
+pub async fn update_role(uuid: web::Path<String>, dto: web::Json<UpdateRoleDTO>, roles: web::Data<RoleStore>) -> impl Responder {
     let id = uuid.into_inner();
     let mut roles_guard = roles.lock().unwrap();
 
@@ -234,15 +160,6 @@ pub async fn update_role(
     }
 }
 
-#[utoipa::path(
-    delete,
-    path = "/roles/{uuid}",
-    params(("uuid" = String, Path, description = "UUID роли")),
-    responses(
-        (status = 204, description = "Роль удалена"),
-        (status = 404, description = "Роль не найдена")
-    )
-)]
 #[delete("/roles/{uuid}")]
 pub async fn delete_role(uuid: web::Path<String>, roles: web::Data<RoleStore>) -> impl Responder {
     let mut roles = roles.lock().unwrap();
@@ -254,6 +171,4 @@ pub async fn delete_role(uuid: web::Path<String>, roles: web::Data<RoleStore>) -
     }
 }
 #[get("/forbidden")]
-pub async fn forbidden() -> impl Responder {
-    HttpResponse::Forbidden().body("Access to this resource is forbidden.")
-}
+pub async fn forbidden() -> impl Responder {HttpResponse::Forbidden().body("Access to this resource is forbidden.")}

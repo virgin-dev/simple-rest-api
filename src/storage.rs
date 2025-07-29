@@ -1,6 +1,7 @@
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
+use log::info;
 use crate::models::{User, Role};
 
 const USERS_FILE: &str = "users.json";
@@ -15,6 +16,7 @@ pub fn save_users(users: &HashMap<String, User>) {
 }
 
 pub fn load_roles() -> HashMap<String, Role> {
+    info!("Start load roles");
     load_or_initialize(ROLES_FILE, default_roles)
 }
 
