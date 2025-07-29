@@ -1,9 +1,11 @@
+use actix_web::web::Query;
 use actix_web::{delete, get, post, put, web, HttpResponse, Responder};
+use serde_json::json;
 use std::collections::HashMap;
 use std::sync::Mutex;
 use uuid::Uuid;
 
-use crate::models::{CreateRoleDTO, CreateUserDTO, Role, UpdateRoleDTO, UpdateUserDTO, User};
+use crate::models::{CreateRoleDTO, CreateUserDTO, Role, UpdateRoleDTO, UpdateUserDTO, User, UsersResponse};
 use crate::storage::{save_roles, save_users};
 
 type UserStore = Mutex<HashMap<String, User>>;
@@ -19,7 +21,10 @@ type RoleStore = Mutex<HashMap<String, Role>>;
 #[get("/users")]
 pub async fn get_all_users(users: web::Data<UserStore>) -> impl Responder {
     let users = users.lock().unwrap();
-    HttpResponse::Ok().json(users.values().cloned().collect::<Vec<_>>())
+    let response = UsersResponse {
+        users: users.values().cloned().collect(),
+    };
+    HttpResponse::Ok().json(response)
 }
 
 #[utoipa::path(
@@ -35,8 +40,25 @@ pub async fn get_all_users(users: web::Data<UserStore>) -> impl Responder {
 pub async fn get_user(uuid: web::Path<String>, users: web::Data<UserStore>) -> impl Responder {
     let users = users.lock().unwrap();
     match users.get(&uuid.into_inner()) {
-        Some(user) => HttpResponse::Ok().json(user),
+        Some(user) => {
+            let response = serde_json::json!({ "users": [user] });
+            HttpResponse::Ok().json(response)
+        },
         None => HttpResponse::NotFound().body("User not found"),
+    }
+}
+
+#[get("/users/search")]
+pub async fn get_user_search(query: Query<HashMap<String,String>>, users: web::Data<UserStore>) -> impl Responder {
+    let users = users.lock().unwrap();
+    if let Some(query) = query.get("query") {
+        let lowered = query.to_lowercase();
+        let matched: Vec<_> = users.values().filter(|u| u.uuid.to_lowercase().contains(&lowered) || u.full_name.to_lowercase().contains(&lowered)).cloned().collect();
+
+        let response = json!({ "users": &matched });
+        HttpResponse::Ok().json(response)
+    } else {
+        HttpResponse::NotFound().body("User not found")
     }
 }
 

@@ -48,43 +48,45 @@
 
     async function loadUsers() {
         const res = await fetch('/users');
-        const users = await res.json();
+        const data = await res.json();
+        const users = data.users;
         const table = document.getElementById('users-table');
         table.innerHTML = `
-                <tr><th>Имя</th><th>Заблокирован</th><th>Роли</th><th>Действия</th></tr>
-                ${users.map(u => `
-                    <tr>
-                        <td>${u.full_name}</td>
-                        <td>${u.is_blocked ? 'Да' : 'Нет'}</td>
-                        <td>${u.roles.join(', ')}</td>
-                        <td>
-                            <button onclick="editUser('${u.uuid}', '${u.full_name}', ${u.is_blocked})">Изменить</button>
-                            <button onclick="deleteUser('${u.uuid}')">Удалить</button>
-                            <button onclick="assignRoles('${u.uuid}', ${JSON.stringify(u.roles)})">Назначить роли</button>
-                        </td>
-                    </tr>
-                `).join('')}
-            `;
+            <tr><th>Имя</th><th>Заблокирован</th><th>Роли</th><th>Действия</th></tr>
+            ${users.map(u => `
+                <tr>
+                    <td>${u.full_name}</td>
+                    <td>${u.is_blocked ? 'Да' : 'Нет'}</td>
+                    <td>${u.roles.join(', ')}</td>
+                    <td>
+                        <button onclick="editUser('${u.uuid}', '${u.full_name}', ${u.is_blocked})">Изменить</button>
+                        <button onclick="deleteUser('${u.uuid}')">Удалить</button>
+                        <button onclick="assignRoles('${u.uuid}', ${JSON.stringify(u.roles)})">Назначить роли</button>
+                    </td>
+                </tr>
+            `).join('')}
+        `;
     }
 
     async function loadRoles() {
         const res = await fetch('/roles');
-        const roles = await res.json();
+        const data = await res.json();
+        const roles = data.roles;
         rolesCache = roles;
         const table = document.getElementById('roles-table');
         table.innerHTML = `
-                <tr><th>Название</th><th>Описание</th><th>Действия</th></tr>
-                ${roles.map(r => `
-                    <tr>
-                        <td>${r.name}</td>
-                        <td>${r.description}</td>
-                        <td>
-                            <button onclick="editRole('${r.uuid}', '${r.name}', '${r.description}')">Изменить</button>
-                            <button onclick="deleteRole('${r.uuid}')">Удалить</button>
-                        </td>
-                    </tr>
-                `).join('')}
-            `;
+            <tr><th>Название</th><th>Описание</th><th>Действия</th></tr>
+            ${roles.map(r => `
+                <tr>
+                    <td>${r.name}</td>
+                    <td>${r.description}</td>
+                    <td>
+                        <button onclick="editRole('${r.uuid}', '${r.name}', '${r.description}')">Изменить</button>
+                        <button onclick="deleteRole('${r.uuid}')">Удалить</button>
+                    </td>
+                </tr>
+            `).join('')}
+        `;
     }
 
     function showUserForm() {

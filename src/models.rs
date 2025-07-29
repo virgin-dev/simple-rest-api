@@ -41,3 +41,13 @@ pub struct UpdateRoleDTO {
     pub name: Option<String>,
     pub description: Option<String>,
 }
+
+#[derive(Serialize)]
+pub struct UsersResponse {
+    pub users: Vec<User>,
+}
+
+#[derive(Serialize)]
+pub struct RolesResponse {
+    pub roles: Vec<Role>,
+}
