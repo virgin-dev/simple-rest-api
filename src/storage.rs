@@ -2,6 +2,8 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
 use log::info;
+use serde::de::DeserializeOwned;
+use serde::Serialize;
 use crate::models::{User, Role};
 
 const USERS_FILE: &str = "users.json";
@@ -24,10 +26,7 @@ pub fn save_roles(roles: &HashMap<String, Role>) {
     save_map(ROLES_FILE, roles);
 }
 
-fn load_or_initialize<T: serde::de::DeserializeOwned + serde::Serialize>(
-    path: &str,
-    default_fn: fn() -> HashMap<String, T>,
-) -> HashMap<String, T> {
+fn load_or_initialize<T: DeserializeOwned + Serialize> (path: &str, default_fn: fn() -> HashMap<String, T>) -> HashMap<String, T> {
     if !Path::new(path).exists() {
         let data = default_fn();
         save_map(path, &data);

@@ -23,7 +23,26 @@ pub struct UpdateUserDTO {
     pub roles: Option<Vec<String>>,
 }
 
-#[derive(Serialize, Deserialize, Clone, ToSchema)]
+#[derive(Serialize)]
+pub struct UsersResponse {
+    pub users: Vec<UserResponse>,
+}
+
+#[derive(Serialize, Debug)]
+pub struct UserResponse {
+    pub uuid: String,
+    pub full_name: String,
+    pub is_blocked: bool,
+    pub roles: Vec<RoleReference>,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct UserQuery {
+    pub uuid: Option<String>,
+    pub full_name: Option<String>,
+}
+
+#[derive(Serialize, Deserialize, Clone, ToSchema, Debug)]
 pub struct Role {
     pub uuid: String,
     pub name: String,
@@ -43,24 +62,17 @@ pub struct UpdateRoleDTO {
 }
 
 #[derive(Serialize)]
-pub struct UsersResponse {
-    pub users: Vec<UserResponse>,
-}
-
-#[derive(Serialize)]
 pub struct RolesResponse {
     pub roles: Vec<Role>,
 }
 
-#[derive(Serialize)]
-pub struct UserResponse {
-    pub uuid: String,
-    pub full_name: String,
-    pub is_blocked: bool,
-    pub roles: Vec<RoleReference>,
-}
-
-#[derive(Serialize)]
+#[derive(Serialize, Debug)]
 pub struct RoleReference {
     pub(crate) uuid: String,
+}
+
+#[derive(Serialize, Deserialize, Debug)]
+pub struct RoleQuery {
+    pub uuid: Option<String>,
+    pub name: Option<String>,
 }

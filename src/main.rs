@@ -3,6 +3,8 @@ mod models;
 mod storage;
 mod frontend;
 mod config;
+mod user_handlers;
+mod role_handlers;
 
 use crate::config::Config;
 use crate::storage::{load_roles, load_users};
@@ -32,19 +34,16 @@ async fn main() -> std::io::Result<()> {
             .wrap(Logger::default())
             .app_data(users.clone())
             .app_data(roles.clone())
-            .service(handlers::get_all_users)
-            .service(handlers::get_user)
-            .service(handlers::create_user)
-            .service(handlers::update_user)
-            .service(handlers::delete_user)
-            .service(handlers::get_all_roles)
-            .service(handlers::get_role)
-            .service(handlers::create_role)
-            .service(handlers::update_role)
-            .service(handlers::delete_role)
+            .service(user_handlers::get_users)
+            .service(user_handlers::create_user)
+            .service(user_handlers::update_user)
+            .service(user_handlers::delete_user)
+            .service(role_handlers::get_roles)
+            .service(role_handlers::create_role)
+            .service(role_handlers::update_role)
+            .service(role_handlers::delete_role)
             .service(handlers::forbidden)
             .service(frontend::index)
-            .service(handlers::get_user_search)
     })
         .bind((config.ip, config.port))?
         .run()
